@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energy Dash</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --cream:#F2F0E9; --cream-card:#F7F5EF;
+    --ink:#595959; --ink-soft:#7d7d7d; --line:#d6d2c4;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--cream);color:var(--ink);
+    font-family:Georgia,'Times New Roman',serif;}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 18px 60px;}
+  .topbar{display:flex;align-items:baseline;justify-content:space-between;margin:4px 2px 16px;}
+  .topbar h1{font-size:26px;font-weight:normal;letter-spacing:.5px;color:#4a4a4a;margin:0;}
+  .topbar .meta{font-size:13px;color:var(--ink-soft);font-family:Arial,Helvetica,sans-serif;}
+  .topbar .meta a{color:var(--ink-soft);margin-left:12px;cursor:pointer;text-decoration:underline;}
+
+  .tiles{display:grid;grid-template-columns:repeat(6,1fr);
+    border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--cream-card);
+    box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .tile{border-right:1px solid var(--line);display:flex;flex-direction:column;}
+  .tile:last-child{border-right:none;}
+  .tile .label{padding:14px 10px 12px;text-align:center;font-size:18px;line-height:1.25;
+    color:var(--ink);min-height:74px;display:flex;align-items:center;justify-content:center;}
+  .tile .value{text-align:center;font-size:30px;padding:14px 6px;color:#4a4a4a;
+    background:#e9e6dc;border-top:1px solid var(--line);transition:background .4s;}
+  @media(max-width:780px){
+    .tiles{grid-template-columns:repeat(2,1fr);}
+    .tile{border-bottom:1px solid var(--line);}
+    .tile .label{font-size:16px;min-height:0;} .tile .value{font-size:26px;}
+  }
+
+  .card{background:var(--cream-card);border:1px solid var(--line);border-radius:4px;
+    margin-top:22px;padding:16px 18px 20px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  .card h2{font-size:22px;font-weight:normal;color:#9a9a8f;margin:2px 0 10px;}
+  .chart-box{position:relative;height:340px;} .chart-box.tall{height:380px;}
+  .axis-note{font-family:Arial,sans-serif;font-size:11px;color:var(--ink-soft);margin-top:6px;text-align:right;}
+  .banner{font-family:Arial,Helvetica,sans-serif;font-size:13px;background:#fff7e6;
+    border:1px solid #f0d9a8;color:#8a6d3b;padding:9px 13px;border-radius:4px;margin-bottom:14px;}
+
+  /* login */
+  #login{max-width:380px;margin:12vh auto;background:var(--cream-card);border:1px solid var(--line);
+    border-radius:8px;padding:28px 26px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  #login h1{font-size:26px;font-weight:normal;color:#4a4a4a;margin:0 0 4px;}
+  #login p{font-family:Arial,sans-serif;font-size:13px;color:var(--ink-soft);margin:0 0 18px;}
+  #login input{width:100%;padding:10px 12px;font-size:15px;font-family:Arial,sans-serif;
+    border:1px solid var(--line);border-radius:5px;margin-bottom:10px;}
+  #login button{width:100%;padding:10px;font-size:15px;font-family:Arial,sans-serif;
+    background:#6AA84F;color:#fff;border:none;border-radius:5px;cursor:pointer;}
+  #login .msg{font-family:Arial,sans-serif;font-size:13px;margin-top:12px;min-height:18px;}
+  .hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+  <h1>Energy Dash</h1>
+  <p>Enter your email to receive a one-time sign-in link.</p>
+  <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+  <button id="sendLink">Send magic link</button>
+  <div class="msg" id="loginMsg"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="wrap hidden" id="app">
+  <div class="topbar">
+    <h1>Energy Dash</h1>
+    <div class="meta"><span id="updated">loading…</span><a id="signout">sign out</a></div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="label">Current Demand (Kw)</div><div class="value" id="m_demand">—</div></div>
+    <div class="tile"><div class="label">Latest 5Min Price</div><div class="value" id="m_5min">—</div></div>
+    <div class="tile"><div class="label">Latest Hourly Avg Price</div><div class="value" id="m_hour">—</div></div>
+    <div class="tile"><div class="label">Run Rate Monthly</div><div class="value" id="m_month">—</div></div>
+    <div class="tile"><div class="label">Run Rate Hourly</div><div class="value" id="m_hourly">—</div></div>
+    <div class="tile"><div class="label">Trailing 30 day cost</div><div class="value" id="m_trail">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="chart-box"><canvas id="priceChart"></canvas></div>
+    <div class="axis-note">Cost per kWh (¢) · Demand (kW) — most recent on the right</div>
+  </div>
+
+  <div class="card">
+    <h2>Consumption by day</h2>
+    <div class="chart-box tall"><canvas id="consChart"></canvas></div>
+  </div>
+</div>
+
+<script>
+// ---- config (anon key is public-by-design; RLS protects the data) ----
+const SUPABASE_URL  = "https://davisdata.tail212a4c.ts.net";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgxNTAxOTgwLCJleHAiOjIwOTY4NjE5ODB9.MaoFZNmaoJPa_uleOhvr8PYroZmfQcYWhH9hD9oyO-Y";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ---- conditional-format color scale (matches the Google Sheet) ----
+function lerp(a,b,t){return Math.round(a+(b-a)*t);}
+function scale(v,min,mid,max){
+  if(v==null||isNaN(v)) return '#e9e6dc';
+  const g=[182,215,168], y=[255,229,153], r=[224,102,102]; let c;
+  if(v<=min)c=g; else if(v>=max)c=r;
+  else if(v<=mid){const t=(v-min)/(mid-min);c=[lerp(g[0],y[0],t),lerp(g[1],y[1],t),lerp(g[2],y[2],t)];}
+  else{const t=(v-mid)/(max-mid);c=[lerp(y[0],r[0],t),lerp(y[1],r[1],t),lerp(y[2],r[2],t)];}
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+const money=v=>'$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
+const money2=v=>'$'+Number(v).toFixed(2);
+const num2=v=>Number(v).toFixed(2);
+
+let priceChart, consChart, timers=[];
+
+// Tiles refresh every 10s (driven by the 10-second demand sampler).
+async function loadTiles(){
+  const {data:latest}=await sb.from('energy_latest').select('*').maybeSingle();
+  if(!latest) return;
+  const set=(id,txt,bg)=>{const e=document.getElementById(id);e.textContent=txt;if(bg)e.style.background=bg;};
+  set('m_demand', num2(latest.demand_kw),               scale(+latest.demand_kw,4,5,8));
+  set('m_5min',   num2(latest.price_5min_cents),        scale(+latest.price_5min_cents,2,5,8));
+  set('m_hour',   num2(latest.price_hour_cents),        scale(+latest.price_hour_cents,2,5,8));
+  set('m_month',  money(latest.run_rate_monthly),       scale(+latest.run_rate_monthly,200,300,500));
+  set('m_hourly', money2(latest.run_rate_hourly),       scale(+latest.run_rate_hourly,200,300,500));
+  set('m_trail',  money2(latest.trailing_30d_cost),     scale(+latest.trailing_30d_cost,200,300,500));
+  document.getElementById('updated').textContent =
+    'updated '+new Date(latest.ts).toLocaleTimeString('en-US');
+}
+
+// Charts refresh every 60s (ComEd cadence).
+async function loadCharts(){
+  const [{data:hist},{data:daily}]=await Promise.all([
+    sb.from('energy_price_history').select('*'),
+    sb.from('energy_daily').select('*'),
+  ]);
+  renderPrice(hist||[]);
+  renderConsumption(daily||[]);
+}
+
+function startDashboard(){
+  stopDashboard();
+  loadTiles(); loadCharts();
+  timers.push(setInterval(loadTiles, 10000));   // demand: 10s
+  timers.push(setInterval(loadCharts, 60000));  // ComEd / charts: 60s
+}
+function stopDashboard(){ timers.forEach(clearInterval); timers=[]; }
+
+function renderPrice(rows){
+  rows.sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  const labels=rows.map(r=>new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
+  const five=rows.map(r=>+r.cost_5min_cents);
+  const avg =rows.map(r=>+r.cost_hour_cents);
+  const dem =rows.map(r=>+r.demand_kw);
+  const ymax=Math.max(20,Math.ceil(Math.max(1,...five)/5)*5);
+  if(priceChart)priceChart.destroy();
+  priceChart=new Chart(document.getElementById('priceChart'),{type:'line',
+    data:{labels,datasets:[
+      {label:'5 Min Price',data:five,borderColor:'#7fa86a',backgroundColor:'#93C47D',pointRadius:0,borderWidth:1.6,tension:.25,yAxisID:'y'},
+      {label:'Avg Price',data:avg,borderColor:'#990000',backgroundColor:'#990000',pointRadius:0,borderWidth:2,stepped:true,yAxisID:'y'},
+      {label:'Demand (kW)',data:dem,borderColor:'#c98a3a',backgroundColor:'#c98a3a',pointRadius:0,borderWidth:1.4,tension:.3,borderDash:[4,3],yAxisID:'y1'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      scales:{
+        y:{position:'left',min:0,max:ymax,title:{display:true,text:'Cost Per kWH',font:{family:'Georgia',size:13}},grid:{color:'#e3ddcd'}},
+        y1:{position:'right',min:0,max:15,title:{display:true,text:'Demand (kW)',font:{family:'Georgia',size:13}},grid:{drawOnChartArea:false}},
+        x:{ticks:{maxTicksLimit:9,font:{family:'Arial',size:10}},grid:{color:'#ece7d8'}}
+      },
+      plugins:{legend:{position:'top',labels:{font:{family:'Arial',size:12},usePointStyle:true}}}}});
+}
+
+function renderConsumption(rows){
+  const order=['5-Evening','4-Late Afternoon','3-Afternoon','2-Late Morning','1-Morning','0-Late Night'];
+  const colors={'5-Evening':'#A9C9A4','4-Late Afternoon':'#6AA84F','3-Afternoon':'#7F6000',
+    '2-Late Morning':'#E8A87C','1-Morning':'#0C343D','0-Late Night':'#D9694C'};
+  const days=[...new Set(rows.map(r=>r.day))].sort();
+  const dayLabels=days.map(d=>new Date(d+'T00:00').toLocaleDateString('en-US',{month:'numeric',day:'numeric'}));
+  const datasets=order.map(b=>({label:b,backgroundColor:colors[b],stack:'kwh',borderWidth:0,
+    data:days.map(d=>{const m=rows.find(r=>r.day===d&&r.bucket===b);return m?+m.kwh:0;})}));
+  if(consChart)consChart.destroy();
+  consChart=new Chart(document.getElementById('consChart'),{type:'bar',
+    data:{labels:dayLabels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Arial',size:10}}},
+              y:{stacked:true,grid:{color:'#e3ddcd'},ticks:{font:{family:'Arial',size:10}}}},
+      plugins:{legend:{position:'top',labels:{font:{family:'Arial',size:11},usePointStyle:true}}}}});
+}
+
+// ---- auth flow ----
+function show(el){document.getElementById('login').classList.toggle('hidden',el!=='login');
+  document.getElementById('app').classList.toggle('hidden',el!=='app');}
+
+document.getElementById('sendLink').onclick=async()=>{
+  const email=document.getElementById('email').value.trim();
+  const msg=document.getElementById('loginMsg');
+  if(!email){msg.textContent='Enter your email.';return;}
+  msg.textContent='Sending…';
+  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.href}});
+  msg.textContent=error?('Error: '+error.message):'Check your email for the sign-in link.';
+};
+document.getElementById('signout').onclick=async()=>{stopDashboard();await sb.auth.signOut();show('login');};
+
+async function init(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){show('app');startDashboard();} else {show('login');}
+  sb.auth.onAuthStateChange((_e,s)=>{ if(s){show('app');startDashboard();} else {stopDashboard();show('login');} });
+}
+init();
+</script>
+</body>
+</html>
