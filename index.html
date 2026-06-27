@@ -148,8 +148,8 @@ async function loadCharts(){
     sb.from('energy_daily').select('*'),
   ]);
   renderPrice(hist||[]);
-  renderDailyStack('consChart', daily||[], 'kwh',  v=>v, c=>{consChart=c;}, consChart);
-  renderDailyStack('costChart', daily||[], 'cost', v=>'$'+v, c=>{costChart=c;}, costChart);
+  renderDailyStack('consChart', daily||[], 'kwh',  v=>v,      v=>v.toFixed(1),        c=>{consChart=c;}, consChart);
+  renderDailyStack('costChart', daily||[], 'cost', v=>'$'+v,  v=>'$'+v.toFixed(2),    c=>{costChart=c;}, costChart);
 }
 
 function startDashboard(){
@@ -183,8 +183,27 @@ function renderPrice(rows){
       plugins:{legend:{position:'top',labels:{font:{family:'Arial',size:12},usePointStyle:true}}}}});
 }
 
+// Draws the day's NET total above each stacked bar (below it when net is negative).
+const dailyTotalLabel = (labelFmt)=>({
+  id:'dailyTotalLabel',
+  afterDatasetsDraw(chart){
+    const {ctx, scales:{y}} = chart;
+    ctx.save();
+    ctx.font='bold 10px Arial'; ctx.fillStyle='#4a4a4a'; ctx.textAlign='center';
+    chart.data.labels.forEach((_,i)=>{
+      let total=0, posSum=0, negSum=0;
+      chart.data.datasets.forEach(ds=>{const v=+ds.data[i]||0; total+=v; if(v>0)posSum+=v; else negSum+=v;});
+      const meta=chart.getDatasetMeta(0).data[i]; if(!meta) return;
+      const xPix=meta.x;
+      if(total>=0){ ctx.textBaseline='bottom'; ctx.fillText(labelFmt(total), xPix, y.getPixelForValue(posSum)-3); }
+      else { ctx.textBaseline='top'; ctx.fillText(labelFmt(total), xPix, y.getPixelForValue(negSum)+3); }
+    });
+    ctx.restore();
+  }
+});
+
 // Generic stacked-by-day chart used for both Consumption (kWh) and Cost ($).
-function renderDailyStack(canvasId, rows, field, tickFmt, setChart, oldChart){
+function renderDailyStack(canvasId, rows, field, tickFmt, labelFmt, setChart, oldChart){
   const order=['5-Evening','4-Late Afternoon','3-Afternoon','2-Late Morning','1-Morning','0-Late Night'];
   const colors={'5-Evening':'#A9C9A4','4-Late Afternoon':'#6AA84F','3-Afternoon':'#7F6000',
     '2-Late Morning':'#E8A87C','1-Morning':'#0C343D','0-Late Night':'#D9694C'};
@@ -195,7 +214,8 @@ function renderDailyStack(canvasId, rows, field, tickFmt, setChart, oldChart){
   if(oldChart)oldChart.destroy();
   const chart=new Chart(document.getElementById(canvasId),{type:'bar',
     data:{labels:dayLabels,datasets},
-    options:{responsive:true,maintainAspectRatio:false,
+    plugins:[dailyTotalLabel(labelFmt)],
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18,bottom:18}},
       scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Arial',size:10}}},
               y:{stacked:true,grid:{color:'#e3ddcd'},
                  ticks:{font:{family:'Arial',size:10},callback:v=>tickFmt(v)}}},
