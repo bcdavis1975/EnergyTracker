@@ -27,14 +27,15 @@
     box-shadow:0 1px 2px rgba(0,0,0,.05);}
   .tile{border-right:1px solid var(--line);display:flex;flex-direction:column;}
   .tile:last-child{border-right:none;}
-  .tile .label{padding:14px 10px 12px;text-align:center;font-size:18px;line-height:1.25;
-    color:var(--ink);min-height:74px;display:flex;align-items:center;justify-content:center;}
-  .tile .value{text-align:center;font-size:30px;padding:14px 6px;color:#4a4a4a;
+  .tile .label{padding:8px 8px 6px;text-align:center;font-size:13px;line-height:1.2;
+    color:var(--ink);min-height:46px;display:flex;align-items:center;justify-content:center;}
+  .tile .value{text-align:center;font-size:22px;padding:7px 6px;color:#4a4a4a;
     background:#e9e6dc;border-top:1px solid var(--line);transition:background .4s;}
   @media(max-width:780px){
-    .tiles{grid-template-columns:repeat(2,1fr);}
+    .tiles{grid-template-columns:repeat(3,1fr);}
     .tile{border-bottom:1px solid var(--line);}
-    .tile .label{font-size:16px;min-height:0;} .tile .value{font-size:26px;}
+    .tile .label{font-size:11px;min-height:38px;padding:6px 4px 4px;line-height:1.15;}
+    .tile .value{font-size:17px;padding:5px 4px;}
   }
 
   .card{background:var(--cream-card);border:1px solid var(--line);border-radius:4px;
@@ -144,7 +145,7 @@ async function loadTiles(){
 // Charts refresh every 60s (ComEd cadence).
 async function loadCharts(){
   const [{data:hist},{data:daily}]=await Promise.all([
-    sb.from('energy_price_history').select('*'),
+    sb.from('energy_price_history').select('*').order('ts',{ascending:false}).limit(1440),
     sb.from('energy_daily').select('*'),
   ]);
   renderPrice(hist||[]);
