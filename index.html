@@ -57,6 +57,37 @@
     background:#6AA84F;color:#fff;border:none;border-radius:5px;cursor:pointer;}
   #login .msg{font-family:Arial,sans-serif;font-size:13px;margin-top:12px;min-height:18px;}
   .hidden{display:none!important;}
+
+  /* alerts modal */
+  .overlay{position:fixed;inset:0;background:rgba(40,38,32,.45);z-index:50;
+    display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 14px;}
+  .modal{background:var(--cream-card);border:1px solid var(--line);border-radius:8px;
+    width:100%;max-width:560px;padding:22px 24px 26px;box-shadow:0 8px 30px rgba(0,0,0,.18);}
+  .modal h2{font-size:22px;font-weight:normal;color:#4a4a4a;margin:0 0 4px;}
+  .modal .sub{font-family:Arial,sans-serif;font-size:13px;color:var(--ink-soft);margin:0 0 18px;}
+  .modal label.fld{display:block;font-family:Arial,sans-serif;font-size:13px;color:var(--ink);margin:14px 0 4px;}
+  .modal input[type=number],.modal input[type=text],.modal input[type=email]{
+    width:100%;padding:8px 10px;font-size:14px;font-family:Arial,sans-serif;
+    border:1px solid var(--line);border-radius:5px;background:#fff;}
+  .row2{display:flex;gap:12px;} .row2>div{flex:1;}
+  .chk{font-family:Arial,sans-serif;font-size:13px;color:var(--ink);
+    display:flex;align-items:center;gap:7px;margin:6px 0;cursor:pointer;}
+  .chk input{width:16px;height:16px;}
+  .fieldgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;
+    border:1px solid var(--line);border-radius:5px;padding:10px 12px;background:#fff;}
+  .rcpt{display:flex;gap:8px;align-items:center;margin:7px 0;}
+  .rcpt input.em{flex:2;} .rcpt input.lb{flex:1;}
+  .rcpt .en{flex:0 0 auto;} .rcpt .del{flex:0 0 auto;cursor:pointer;color:#b45;
+    font-family:Arial,sans-serif;font-size:18px;line-height:1;border:none;background:none;padding:0 4px;}
+  .mbtn{font-family:Arial,sans-serif;font-size:14px;padding:9px 16px;border:none;border-radius:5px;cursor:pointer;}
+  .mbtn.primary{background:#6AA84F;color:#fff;} .mbtn.ghost{background:#e3ddcd;color:#4a4a4a;}
+  .mbtn.link{background:none;color:#6AA84F;text-decoration:underline;padding:9px 4px;}
+  .modal-actions{display:flex;justify-content:space-between;align-items:center;margin-top:20px;gap:10px;}
+  .addbtn{font-family:Arial,sans-serif;font-size:13px;background:none;border:1px dashed var(--line);
+    color:var(--ink-soft);border-radius:5px;padding:7px 10px;cursor:pointer;margin-top:6px;}
+  .alertMsg{font-family:Arial,sans-serif;font-size:13px;min-height:18px;margin-top:10px;}
+  .hint{font-family:Arial,sans-serif;font-size:12px;color:var(--ink-soft);margin:4px 0 0;}
+  hr.sep{border:none;border-top:1px solid var(--line);margin:20px 0 4px;}
 </style>
 </head>
 <body>
@@ -75,7 +106,7 @@
   <div class="sticky-head">
   <div class="topbar">
     <h1>Energy Dash</h1>
-    <div class="meta"><span id="updated">loading…</span><a id="signout">sign out</a></div>
+    <div class="meta"><span id="updated">loading…</span><a id="openAlerts">alerts</a><a id="signout">sign out</a></div>
   </div>
 
   <div class="tiles">
@@ -101,6 +132,53 @@
   <div class="card">
     <h2>Cost by day</h2>
     <div class="chart-box tall"><canvas id="costChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ALERTS SETTINGS MODAL -->
+<div id="alertsOverlay" class="overlay hidden">
+  <div class="modal">
+    <h2>Alerts</h2>
+    <p class="sub">Email a heads-up when <b>Run Rate Hourly</b> goes over your threshold.</p>
+
+    <label class="chk"><input type="checkbox" id="al_enabled"> Alerts enabled</label>
+
+    <div class="row2">
+      <div>
+        <label class="fld" for="al_threshold">Threshold — Run Rate Hourly over ($)</label>
+        <input type="number" id="al_threshold" step="0.01" min="0" placeholder="5.00">
+      </div>
+      <div>
+        <label class="fld" for="al_cooldown">Re-alert at most every (minutes)</label>
+        <input type="number" id="al_cooldown" step="1" min="1" placeholder="60">
+      </div>
+    </div>
+    <p class="hint">Sends once when it crosses above, then no more than once per this many minutes while it stays high.</p>
+
+    <label class="fld">Include in the email</label>
+    <div class="fieldgrid">
+      <label class="chk"><input type="checkbox" id="f_run_rate_hourly"> Run Rate Hourly</label>
+      <label class="chk"><input type="checkbox" id="f_demand"> Current Demand</label>
+      <label class="chk"><input type="checkbox" id="f_price_hour"> Hourly Avg Price</label>
+      <label class="chk"><input type="checkbox" id="f_price_5min"> 5-Min Price</label>
+      <label class="chk"><input type="checkbox" id="f_run_rate_monthly"> Run Rate Monthly</label>
+      <label class="chk"><input type="checkbox" id="f_trailing_30d"> Trailing 30-Day Cost</label>
+    </div>
+
+    <hr class="sep">
+    <label class="fld">Recipients</label>
+    <div id="rcptList"></div>
+    <button class="addbtn" id="addRcpt">+ add recipient</button>
+
+    <div class="alertMsg" id="alertMsg"></div>
+
+    <div class="modal-actions">
+      <button class="mbtn link" id="sendTest">Send test email</button>
+      <div>
+        <button class="mbtn ghost" id="closeAlerts">Close</button>
+        <button class="mbtn primary" id="saveAlerts">Save</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -165,7 +243,13 @@ function renderPrice(rows){
   rows.sort((a,b)=>new Date(a.ts)-new Date(b.ts));
   const labels=rows.map(r=>new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
   const five=rows.map(r=>+r.cost_5min_cents);
-  const avg =rows.map(r=>+r.cost_hour_cents);
+  // True hourly average = mean of the 5-min prices within each clock hour, held
+  // flat across the hour (one step per hour). ComEd's cost_hour_cents is a
+  // running intra-hour average that revises every 5 min, which produced too many steps.
+  const hourKey=r=>{const d=new Date(r.ts);return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate()+'-'+d.getHours();};
+  const hSum={},hCnt={};
+  rows.forEach(r=>{const v=+r.cost_5min_cents;if(!isFinite(v))return;const k=hourKey(r);hSum[k]=(hSum[k]||0)+v;hCnt[k]=(hCnt[k]||0)+1;});
+  const avg =rows.map(r=>{const k=hourKey(r);return hCnt[k]?Math.round(hSum[k]/hCnt[k]*100)/100:null;});
   const dem =rows.map(r=>+r.demand_kw);
   const ymax=Math.max(20,Math.ceil(Math.max(1,...five)/5)*5);
   if(priceChart)priceChart.destroy();
@@ -237,6 +321,75 @@ document.getElementById('sendLink').onclick=async()=>{
   msg.textContent=error?('Error: '+error.message):'Check your email for the sign-in link.';
 };
 document.getElementById('signout').onclick=async()=>{stopDashboard();await sb.auth.signOut();show('login');};
+
+// ---- alerts settings ----
+const FIELDS=['demand','price_5min','price_hour','run_rate_hourly','run_rate_monthly','trailing_30d'];
+let recipients=[];  // [{id?, email, label, enabled}]
+
+function renderRecipients(){
+  const box=document.getElementById('rcptList'); box.innerHTML='';
+  if(!recipients.length){box.innerHTML='<p class="hint">No recipients yet — add at least one email.</p>';}
+  recipients.forEach((r,i)=>{
+    const d=document.createElement('div'); d.className='rcpt';
+    d.innerHTML=`<input class="lb" type="text" placeholder="name (optional)" value="${(r.label||'').replace(/"/g,'&quot;')}">
+      <input class="em" type="email" placeholder="email@example.com" value="${(r.email||'').replace(/"/g,'&quot;')}">
+      <label class="chk en"><input type="checkbox" ${r.enabled?'checked':''}> on</label>
+      <button class="del" title="remove">×</button>`;
+    const [lb,em]=d.querySelectorAll('input[type=text],input[type=email]');
+    lb.oninput=e=>recipients[i].label=e.target.value;
+    em.oninput=e=>recipients[i].email=e.target.value.trim();
+    d.querySelector('.en input').onchange=e=>recipients[i].enabled=e.target.checked;
+    d.querySelector('.del').onclick=()=>{recipients.splice(i,1);renderRecipients();};
+    box.appendChild(d);
+  });
+}
+document.getElementById('addRcpt').onclick=()=>{recipients.push({email:'',label:'',enabled:true});renderRecipients();};
+
+async function loadAlertSettings(){
+  document.getElementById('alertMsg').textContent='';
+  const {data:cfg}=await sb.from('energy_alert_config').select('*').maybeSingle();
+  document.getElementById('al_enabled').checked = cfg ? !!cfg.enabled : false;
+  document.getElementById('al_threshold').value = cfg ? cfg.threshold : '';
+  document.getElementById('al_cooldown').value  = cfg ? cfg.cooldown_minutes : 60;
+  FIELDS.forEach(f=>{document.getElementById('f_'+f).checked = cfg ? !!cfg['inc_'+f] : false;});
+  const {data:rs}=await sb.from('energy_alert_recipients').select('*').order('created_at');
+  recipients=(rs||[]).map(r=>({id:r.id,email:r.email,label:r.label||'',enabled:r.enabled}));
+  renderRecipients();
+}
+
+async function saveAlertSettings(){
+  const msg=document.getElementById('alertMsg'); msg.style.color='#7d7d7d'; msg.textContent='Saving…';
+  const {data:{user}}=await sb.auth.getUser();
+  const cfg={owner:user.id,
+    enabled:document.getElementById('al_enabled').checked,
+    threshold:parseFloat(document.getElementById('al_threshold').value)||0,
+    cooldown_minutes:parseInt(document.getElementById('al_cooldown').value)||60,
+    updated_at:new Date().toISOString()};
+  FIELDS.forEach(f=>{cfg['inc_'+f]=document.getElementById('f_'+f).checked;});
+  const {error:e1}=await sb.from('energy_alert_config').upsert(cfg,{onConflict:'owner'});
+  // recipients: replace-all (simple + reliable for a short list)
+  const {error:e2}=await sb.from('energy_alert_recipients').delete().eq('owner',user.id);
+  const valid=recipients.filter(r=>r.email && r.email.includes('@'))
+    .map(r=>({owner:user.id,email:r.email.trim(),label:r.label||null,enabled:r.enabled}));
+  let e3=null; if(valid.length){({error:e3}=await sb.from('energy_alert_recipients').insert(valid));}
+  if(e1||e2||e3){msg.style.color='#b45';msg.textContent='Error: '+((e1||e2||e3).message);}
+  else{msg.style.color='#6AA84F';msg.textContent='Saved.';recipients=valid.map(v=>({...v}));renderRecipients();}
+}
+
+async function sendTest(){
+  const msg=document.getElementById('alertMsg'); msg.style.color='#7d7d7d'; msg.textContent='Sending test…';
+  await saveAlertSettings();
+  const {data,error}=await sb.rpc('energy_send_test');
+  if(error){msg.style.color='#b45';msg.textContent='Error: '+error.message;return;}
+  if(data&&data.ok){msg.style.color='#6AA84F';msg.textContent='Test sent to: '+(data.recipients||[]).join(', ');}
+  else{msg.style.color='#b45';msg.textContent='Not sent: '+((data&&data.error)||'unknown');}
+}
+
+document.getElementById('openAlerts').onclick=async()=>{await loadAlertSettings();document.getElementById('alertsOverlay').classList.remove('hidden');};
+document.getElementById('closeAlerts').onclick=()=>document.getElementById('alertsOverlay').classList.add('hidden');
+document.getElementById('alertsOverlay').onclick=e=>{if(e.target.id==='alertsOverlay')e.target.classList.add('hidden');};
+document.getElementById('saveAlerts').onclick=saveAlertSettings;
+document.getElementById('sendTest').onclick=sendTest;
 
 async function init(){
   const {data:{session}}=await sb.auth.getSession();
