@@ -260,14 +260,14 @@ function renderPrice(rows){
   if(priceChart)priceChart.destroy();
   priceChart=new Chart(document.getElementById('priceChart'),{type:'line',
     data:{labels,datasets:[
-      {label:'5 Min Price',data:five,borderColor:'#7fa86a',backgroundColor:'#93C47D',pointRadius:0,borderWidth:1.6,tension:.25,yAxisID:'y'},
+      {label:'5 Min Price',data:five,borderColor:'#e06666',backgroundColor:'#e06666',pointRadius:0,borderWidth:1.6,tension:.25,yAxisID:'y'},
       {label:'Avg Price',data:avg,borderColor:'#990000',backgroundColor:'#990000',pointRadius:0,borderWidth:2,stepped:true,yAxisID:'y'},
       {label:'Demand (kW)',data:dem,borderColor:'#c98a3a',backgroundColor:'#c98a3a',pointRadius:0,borderWidth:1.4,tension:.3,yAxisID:'y1'},
       {label:'Solar (kW)',data:prod,borderColor:'#3a8a3a',backgroundColor:'#3a8a3a',pointRadius:0,borderWidth:1.4,tension:.3,spanGaps:true,yAxisID:'y1'},
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       scales:{
-        y:{position:'right',min:0,max:ymax,title:{display:true,text:'Cost Per kWH',font:{family:'Georgia',size:13}},grid:{color:'#e3ddcd'}},
+        y:{position:'right',min:0,max:ymax,title:{display:true,text:'Cost Per kWH',color:'#b23030',font:{family:'Georgia',size:13}},ticks:{color:'#b23030'},grid:{color:'#e3ddcd'}},
         y1:{position:'right',min:-10,max:15,title:{display:true,text:'Demand (kW)',font:{family:'Georgia',size:13}},grid:{drawOnChartArea:false}},
         x:{ticks:{maxTicksLimit:9,font:{family:'Arial',size:10}},grid:{color:'#ece7d8'}}
       },
