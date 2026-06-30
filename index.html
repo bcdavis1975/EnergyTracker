@@ -135,6 +135,12 @@
     <h2>Cost by day</h2>
     <div class="chart-box tall"><canvas id="costChart"></canvas></div>
   </div>
+
+  <div class="card">
+    <h2>Actual bills (ComEd)</h2>
+    <div class="chart-box tall"><canvas id="billChart"></canvas></div>
+    <div class="axis-note">Total billed $ per period (bars) · all-in ¢/kWh (line) — from Green Button</div>
+  </div>
 </div>
 
 <!-- ALERTS SETTINGS MODAL -->
@@ -205,7 +211,7 @@ const money=v=>'$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
 const money2=v=>'$'+Number(v).toFixed(2);
 const num2=v=>Number(v).toFixed(2);
 
-let priceChart, consChart, costChart, timers=[];
+let priceChart, consChart, costChart, billChart, timers=[];
 
 // Tiles refresh every 10s (driven by the 10-second demand sampler).
 async function loadTiles(){
@@ -226,13 +232,34 @@ async function loadTiles(){
 
 // Charts refresh every 60s (ComEd cadence).
 async function loadCharts(){
-  const [{data:hist},{data:daily}]=await Promise.all([
+  const [{data:hist},{data:daily},{data:bills}]=await Promise.all([
     sb.from('energy_price_history').select('*').order('ts',{ascending:false}).limit(1440),
     sb.from('energy_daily').select('*'),
+    sb.from('energy_bills').select('period_start,total_cost,effective_rate_cents').order('period_start'),
   ]);
   renderPrice(hist||[]);
   renderDailyStack('consChart', daily||[], 'kwh',  v=>v,      v=>v.toFixed(1),        c=>{consChart=c;}, consChart);
   renderDailyStack('costChart', daily||[], 'cost', v=>'$'+v,  v=>'$'+v.toFixed(2),    c=>{costChart=c;}, costChart);
+  renderBills(bills||[]);
+}
+
+function renderBills(rows){
+  const labels=rows.map(r=>new Date(r.period_start+'T00:00').toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
+  const cost=rows.map(r=>+r.total_cost);
+  const rate=rows.map(r=>+r.effective_rate_cents);
+  if(billChart)billChart.destroy();
+  billChart=new Chart(document.getElementById('billChart'),{
+    data:{labels,datasets:[
+      {type:'bar',label:'Total billed ($)',data:cost,backgroundColor:'#6AA84F',borderWidth:0,yAxisID:'y',order:2},
+      {type:'line',label:'¢/kWh (all-in)',data:rate,borderColor:'#990000',backgroundColor:'#990000',pointRadius:2,borderWidth:2,tension:.25,yAxisID:'y1',order:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      scales:{
+        y:{position:'left',min:0,title:{display:true,text:'Billed $',font:{family:'Georgia',size:13}},grid:{color:'#e3ddcd'},ticks:{font:{family:'Arial',size:10},callback:v=>'$'+v}},
+        y1:{position:'right',min:0,title:{display:true,text:'¢/kWh',font:{family:'Georgia',size:13}},grid:{drawOnChartArea:false},ticks:{font:{family:'Arial',size:10}}},
+        x:{ticks:{maxTicksLimit:12,font:{family:'Arial',size:10}},grid:{display:false}}
+      },
+      plugins:{legend:{position:'top',labels:{font:{family:'Arial',size:11},usePointStyle:true}}}}});
 }
 
 function startDashboard(){
