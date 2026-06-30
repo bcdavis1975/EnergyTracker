@@ -22,7 +22,7 @@
 
   .sticky-head{position:sticky;top:0;z-index:20;background:var(--cream);
     padding:8px 0 12px;box-shadow:0 8px 8px -6px rgba(0,0,0,.08);}
-  .tiles{display:grid;grid-template-columns:repeat(6,1fr);
+  .tiles{display:grid;grid-template-columns:repeat(8,1fr);
     border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--cream-card);
     box-shadow:0 1px 2px rgba(0,0,0,.05);}
   .tile{border-right:1px solid var(--line);display:flex;flex-direction:column;}
@@ -116,6 +116,8 @@
     <div class="tile"><div class="label">Run Rate Monthly</div><div class="value" id="m_month">—</div></div>
     <div class="tile"><div class="label">Run Rate Hourly</div><div class="value" id="m_hourly">—</div></div>
     <div class="tile"><div class="label">Trailing 30 day cost</div><div class="value" id="m_trail">—</div></div>
+    <div class="tile"><div class="label">Solar Production (Kw)</div><div class="value" id="m_solar">—</div></div>
+    <div class="tile"><div class="label">House Load (Kw)</div><div class="value" id="m_gross">—</div></div>
   </div>
   </div><!-- /sticky-head -->
 
@@ -216,6 +218,8 @@ async function loadTiles(){
   set('m_month',  money(latest.run_rate_monthly),       scale(+latest.run_rate_monthly,200,300,500));
   set('m_hourly', money2(latest.run_rate_hourly),       scale(+latest.run_rate_hourly,200,300,500));
   set('m_trail',  money2(latest.trailing_30d_cost),     scale(+latest.trailing_30d_cost,200,300,500));
+  set('m_solar',  num2(latest.solar_kw),                '#D9EAD3');
+  set('m_gross',  num2(latest.gross_consumption_kw),    scale(+latest.gross_consumption_kw,4,5,8));
   document.getElementById('updated').textContent =
     'updated '+new Date(latest.ts).toLocaleTimeString('en-US');
 }
@@ -251,6 +255,7 @@ function renderPrice(rows){
   rows.forEach(r=>{const v=+r.cost_5min_cents;if(!isFinite(v))return;const k=hourKey(r);hSum[k]=(hSum[k]||0)+v;hCnt[k]=(hCnt[k]||0)+1;});
   const avg =rows.map(r=>{const k=hourKey(r);return hCnt[k]?Math.round(hSum[k]/hCnt[k]*100)/100:null;});
   const dem =rows.map(r=>+r.demand_kw);
+  const prod=rows.map(r=>r.production_kw==null?null:+r.production_kw);
   const ymax=Math.max(20,Math.ceil(Math.max(1,...five)/5)*5);
   if(priceChart)priceChart.destroy();
   priceChart=new Chart(document.getElementById('priceChart'),{type:'line',
@@ -258,6 +263,7 @@ function renderPrice(rows){
       {label:'5 Min Price',data:five,borderColor:'#7fa86a',backgroundColor:'#93C47D',pointRadius:0,borderWidth:1.6,tension:.25,yAxisID:'y'},
       {label:'Avg Price',data:avg,borderColor:'#990000',backgroundColor:'#990000',pointRadius:0,borderWidth:2,stepped:true,yAxisID:'y'},
       {label:'Demand (kW)',data:dem,borderColor:'#c98a3a',backgroundColor:'#c98a3a',pointRadius:0,borderWidth:1.4,tension:.3,yAxisID:'y1'},
+      {label:'Solar (kW)',data:prod,borderColor:'#3a8a3a',backgroundColor:'#3a8a3a',pointRadius:0,borderWidth:1.4,tension:.3,spanGaps:true,yAxisID:'y1'},
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       scales:{
