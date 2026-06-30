@@ -123,7 +123,7 @@
 
   <div class="card">
     <div class="chart-box"><canvas id="priceChart"></canvas></div>
-    <div class="axis-note">Cost per kWh (¢) · Demand (kW) — most recent on the right</div>
+    <div class="axis-note">ComEd market price ¢/kWh · Demand (kW) — most recent on the right</div>
   </div>
 
   <div class="card">
@@ -287,13 +287,14 @@ function stopDashboard(){ timers.forEach(clearInterval); timers=[]; }
 function renderPrice(rows){
   rows.sort((a,b)=>new Date(a.ts)-new Date(b.ts));
   const labels=rows.map(r=>new Date(r.ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}));
-  const five=rows.map(r=>+r.cost_5min_cents);
-  // True hourly average = mean of the 5-min prices within each clock hour, held
-  // flat across the hour (one step per hour). ComEd's cost_hour_cents is a
-  // running intra-hour average that revises every 5 min, which produced too many steps.
+  const five=rows.map(r=>+r.price_5min_cents);
+  // True hourly average = mean of the 5-min ComEd market prices within each clock
+  // hour, held flat across the hour (one step per hour). Matches the "Latest 5Min /
+  // Hourly Avg Price" tiles (raw market price, no delivery adder). ComEd's
+  // price_hour_cents is a running intra-hour average that revises every 5 min.
   const hourKey=r=>{const d=new Date(r.ts);return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate()+'-'+d.getHours();};
   const hSum={},hCnt={};
-  rows.forEach(r=>{const v=+r.cost_5min_cents;if(!isFinite(v))return;const k=hourKey(r);hSum[k]=(hSum[k]||0)+v;hCnt[k]=(hCnt[k]||0)+1;});
+  rows.forEach(r=>{const v=+r.price_5min_cents;if(!isFinite(v))return;const k=hourKey(r);hSum[k]=(hSum[k]||0)+v;hCnt[k]=(hCnt[k]||0)+1;});
   const avg =rows.map(r=>{const k=hourKey(r);return hCnt[k]?Math.round(hSum[k]/hCnt[k]*100)/100:null;});
   const dem =rows.map(r=>+r.demand_kw);
   const prod=rows.map(r=>r.production_kw==null?null:+r.production_kw);
@@ -308,7 +309,7 @@ function renderPrice(rows){
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       scales:{
-        y:{position:'right',min:0,max:ymax,title:{display:true,text:'Cost Per kWH',color:'#b23030',font:{family:'Georgia',size:13}},ticks:{color:'#b23030'},grid:{color:'#e3ddcd'}},
+        y:{position:'right',min:0,max:ymax,title:{display:true,text:'Price (¢/kWh)',color:'#b23030',font:{family:'Georgia',size:13}},ticks:{color:'#b23030'},grid:{color:'#e3ddcd'}},
         y1:{position:'right',min:-10,max:15,title:{display:true,text:'Demand (kW)',font:{family:'Georgia',size:13}},grid:{drawOnChartArea:false}},
         x:{ticks:{maxTicksLimit:9,font:{family:'Arial',size:10}},grid:{color:'#ece7d8'}}
       },
