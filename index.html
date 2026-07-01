@@ -75,9 +75,9 @@
   .modal h2{font-size:22px;font-weight:normal;color:#4a4a4a;margin:0 0 4px;}
   .modal .sub{font-family:Arial,sans-serif;font-size:13px;color:var(--ink-soft);margin:0 0 18px;}
   .modal label.fld{display:block;font-family:Arial,sans-serif;font-size:13px;color:var(--ink);margin:14px 0 4px;}
-  .modal input[type=number],.modal input[type=text],.modal input[type=email]{
+  .modal input[type=number],.modal input[type=text],.modal input[type=email],.modal select{
     width:100%;padding:8px 10px;font-size:14px;font-family:Arial,sans-serif;
-    border:1px solid var(--line);border-radius:5px;background:#fff;}
+    border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink);}
   .row2{display:flex;gap:12px;} .row2>div{flex:1;}
   .chk{font-family:Arial,sans-serif;font-size:13px;color:var(--ink);
     display:flex;align-items:center;gap:7px;margin:6px 0;cursor:pointer;}
@@ -158,13 +158,23 @@
 <div id="alertsOverlay" class="overlay hidden">
   <div class="modal">
     <h2>Alerts</h2>
-    <p class="sub">Email a heads-up when <b>Run Rate Hourly</b> goes over your threshold.</p>
+    <p class="sub" id="al_sub">Email a heads-up when <b id="al_sub_metric">Run Rate Hourly</b> goes over your threshold.</p>
 
     <label class="chk"><input type="checkbox" id="al_enabled"> Alerts enabled</label>
 
+    <label class="fld" for="al_metric">Alert on</label>
+    <select id="al_metric">
+      <option value="run_rate_hourly">Run Rate Hourly</option>
+      <option value="run_rate_monthly">Run Rate Monthly</option>
+      <option value="trailing_30d_cost">Trailing 30-Day Cost</option>
+      <option value="demand_kw">Current Demand</option>
+      <option value="price_hour_cents">Hourly Avg Price</option>
+      <option value="price_5min_cents">5-Min Price</option>
+    </select>
+
     <div class="row2">
       <div>
-        <label class="fld" for="al_threshold">Threshold — Run Rate Hourly over ($)</label>
+        <label class="fld" for="al_threshold" id="al_threshold_lbl">Threshold — over ($)</label>
         <input type="number" id="al_threshold" step="0.01" min="0" placeholder="5.00">
       </div>
       <div>
@@ -415,7 +425,23 @@ document.getElementById('signout').onclick=async()=>{stopDashboard();await sb.au
 
 // ---- alerts settings ----
 const FIELDS=['demand','price_5min','price_hour','run_rate_hourly','run_rate_monthly','trailing_30d'];
+const METRIC_META={
+  run_rate_hourly:  {label:'Run Rate Hourly',    unit:'$'},
+  run_rate_monthly: {label:'Run Rate Monthly',   unit:'$'},
+  trailing_30d_cost:{label:'Trailing 30-Day Cost',unit:'$'},
+  demand_kw:        {label:'Current Demand',     unit:'kW'},
+  price_hour_cents: {label:'Hourly Avg Price',   unit:'¢/kWh'},
+  price_5min_cents: {label:'5-Min Price',        unit:'¢/kWh'}
+};
 let recipients=[];  // [{id?, email, label, enabled}]
+
+function updateMetricLabels(){
+  const m=document.getElementById('al_metric').value;
+  const meta=METRIC_META[m]||METRIC_META.run_rate_hourly;
+  document.getElementById('al_sub_metric').textContent=meta.label;
+  document.getElementById('al_threshold_lbl').textContent=`Threshold — ${meta.label} over (${meta.unit})`;
+}
+document.getElementById('al_metric').onchange=updateMetricLabels;
 
 function renderRecipients(){
   const box=document.getElementById('rcptList'); box.innerHTML='';
@@ -440,9 +466,11 @@ async function loadAlertSettings(){
   document.getElementById('alertMsg').textContent='';
   const {data:cfg}=await sb.from('energy_alert_config').select('*').maybeSingle();
   document.getElementById('al_enabled').checked = cfg ? !!cfg.enabled : false;
+  document.getElementById('al_metric').value = (cfg && cfg.metric) ? cfg.metric : 'run_rate_hourly';
   document.getElementById('al_threshold').value = cfg ? cfg.threshold : '';
   document.getElementById('al_cooldown').value  = cfg ? cfg.cooldown_minutes : 60;
   FIELDS.forEach(f=>{document.getElementById('f_'+f).checked = cfg ? !!cfg['inc_'+f] : false;});
+  updateMetricLabels();
   const {data:rs}=await sb.from('energy_alert_recipients').select('*').order('created_at');
   recipients=(rs||[]).map(r=>({id:r.id,email:r.email,label:r.label||'',enabled:r.enabled}));
   renderRecipients();
@@ -453,6 +481,7 @@ async function saveAlertSettings(){
   const {data:{user}}=await sb.auth.getUser();
   const cfg={owner:user.id,
     enabled:document.getElementById('al_enabled').checked,
+    metric:document.getElementById('al_metric').value,
     threshold:parseFloat(document.getElementById('al_threshold').value)||0,
     cooldown_minutes:parseInt(document.getElementById('al_cooldown').value)||60,
     updated_at:new Date().toISOString()};
